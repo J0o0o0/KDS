@@ -1,0 +1,134 @@
+<div class="min-h-screen bg-slate-950 flex flex-col">
+  <app-top-bar [title]="isExpediter() ? 'Expediter view' : (stationName() ? stationName() + ' station' : 'Kitchen display')" />
+
+  @if (isExpediter()) {
+  <div class="flex gap-1 px-4 pt-3 overflow-x-auto border-b border-slate-800">
+    <button (click)="setStationFilter(null)"
+            class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap"
+            [class]="stationFilter() === null ? 'bg-slate-900 text-amber-400 border-b-2 border-amber-500' : 'text-slate-500 hover:text-slate-300'">
+      All stations
+    </button>
+    @for (s of activeStations(); track s.id) {
+    <button (click)="setStationFilter(s.id)"
+            class="px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap"
+            [class]="stationFilter() === s.id ? 'bg-slate-900 text-amber-400 border-b-2 border-amber-500' : 'text-slate-500 hover:text-slate-300'">
+      {{ s.name }}
+    </button>
+    }
+  </div>
+  }
+
+  @if (isCook() && !assignedStationId()) {
+  <!-- Fallback manual station picker — remove once backend returns
+       the assigned station via /auth/me or JWT claims. -->
+  <div class="flex-1 flex items-center justify-center px-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-sm w-full">
+      <p class="text-slate-300 text-sm mb-4">
+        No station is assigned to your account yet. Pick one to preview your screen
+        (this is a temporary stand-in until station assignment is wired up on the backend).
+      </p>
+      <div class="space-y-2">
+        @for (s of stations(); track s.id) {
+        <button (click)="selectFallbackStation(s)"
+                class="w-full text-left px-4 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 font-medium transition-colors">
+          {{ s.name }}
+        </button>
+        }
+      </div>
+    </div>
+  </div>
+  } @else {
+  <div class="flex-1 overflow-x-auto p-4">
+    @if (loading()) {
+    <div class="text-slate-500 text-center py-20">Loading tickets…</div>
+    } @else if (orderClusters().length === 0) {
+    <div class="text-slate-500 text-center py-20">
+      <p class="text-lg font-medium text-slate-400">All caught up</p>
+      <p class="text-sm mt-1">No active tickets right now.</p>
+    </div>
+    } @else {
+    <div class="flex flex-col gap-5">
+      @for (cluster of orderClusters(); track cluster.order.id) {
+      <div class="border border-slate-800 rounded-xl overflow-hidden">
+        <!-- order-level header + age bar -->
+        <div class="bg-slate-900/60 px-4 py-2 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="text-slate-100 font-bold">#{{ cluster.order.orderNumber }}</span>
+            <span class="text-slate-500 text-xs">
+              {{ cluster.order.orderType === 'DineIn' ? 'Table ' + cluster.order.tableNumber : cluster.order.customerName }}
+            </span>
+          </div>
+          @if (isExpediter() && cluster.order.status !== 'Served') {
+          <button (click)="bumpOrder(cluster.order)"
+                  class="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-100 text-xs font-medium rounded-lg transition-colors">
+            Bump order
+          </button>
+          }
+        </div>
+        <div class="h-1 bg-slate-800 relative overflow-hidden">
+          <div class="h-full transition-all"
+               [style.width.%]="cluster.agePercent"
+               [class]="cluster.agePercent > 80 ? 'bg-red-500' : cluster.agePercent > 50 ? 'bg-amber-500' : 'bg-emerald-500'"></div>
+        </div>
+
+        <!-- component tickets for this order, clustered together -->
+        <div class="p-3 grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));">
+          @for (ticket of cluster.tickets; track ticket.key) {
+          <div class="bg-slate-900 border border-slate-700 rounded-lg p-3 flex flex-col gap-2">
+            <div class="flex items-start justify-between">
+              <div class="text-slate-200 font-medium text-sm">
+                {{ ticket.component.quantity }}× {{ ticket.component.componentName }}
+                @if (ticket.component.variantName) {
+                <span class="text-slate-400">— {{ ticket.component.variantName }}</span>
+                }
+              </div>
+              @if (isExpediter()) {
+              <span class="text-[10px] font-medium px-1.5 py-0.5 rounded-md whitespace-nowrap ml-2"
+                    [style.background]="(ticket.component.stationColor || '#475569') + '33'"
+                    [style.color]="ticket.component.stationColor || '#cbd5e1'">
+                {{ ticket.component.stationName }}
+              </span>
+              }
+            </div>
+
+            @if (ticket.component.addOns.length) {
+            <ul class="space-y-0.5">
+              @for (a of ticket.component.addOns; track a.addOnName) {
+              <li class="text-xs" [class.text-red-400]="a.isRemoval" [class.text-slate-400]="!a.isRemoval">
+                {{ a.isRemoval ? ' ' : '+ ' }}{{ a.addOnName }}
+                @if (a.quantity > 1) {<span> ×{{ a.quantity }}</span>}
+              </li>
+              }
+            </ul>
+            }
+            @if (ticket.itemNotes) {
+            <p class="text-amber-400 text-xs italic">Note: {{ ticket.itemNotes }}</p>
+            }
+
+            <div class="mt-auto pt-1">
+              @if (ticket.component.status === 'New') {
+              <button (click)="advanceComponent(ticket, 'InProgress')"
+                      class="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg py-1.5 transition-colors">
+                Start
+              </button>
+              } @else if (ticket.component.status === 'InProgress') {
+              <button (click)="advanceComponent(ticket, 'Ready')"
+                      class="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-lg py-1.5 transition-colors">
+                Mark ready
+              </button>
+              } @else if (ticket.component.status === 'Ready') {
+              <span class="block text-center text-emerald-400 text-xs font-semibold py-1.5">
+                Ready — waiting on expo
+              </span>
+              }
+            </div>
+          </div>
+          }
+        </div>
+      </div>
+      }
+    </div>
+    }
+  </div>
+  }
+</div>
