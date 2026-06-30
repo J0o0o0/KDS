@@ -1,0 +1,63 @@
+<div class="min-h-screen bg-slate-50 flex flex-col">
+  <app-top-bar title="Order history" />
+
+  <div class="max-w-4xl mx-auto w-full p-4">
+    <div class="bg-white border border-slate-200 rounded-xl p-4 mb-4">
+      <div class="grid sm:grid-cols-4 gap-2">
+        <input [(ngModel)]="fromDate" type="date" class="border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+        <input [(ngModel)]="toDate" type="date" class="border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+        <select [(ngModel)]="statusFilter" class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+          <option [ngValue]="null">All statuses</option>
+          @for (s of statuses; track s) {
+            <option [ngValue]="s">{{ s }}</option>
+          }
+        </select>
+        <button (click)="search()" class="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium">
+          Search
+        </button>
+      </div>
+    </div>
+
+    @if (loading()) {
+      <p class="text-slate-400 text-sm text-center py-10">Loading…</p>
+    } @else if (orders().length === 0) {
+      <p class="text-slate-400 text-sm text-center py-10">No orders found for this filter.</p>
+    } @else {
+      <div class="space-y-2">
+        @for (o of orders(); track o.id) {
+          <button
+            (click)="toggleExpand(o.id)"
+            class="w-full bg-white border border-slate-200 rounded-lg p-3 text-left hover:border-slate-300 transition-colors"
+          >
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="font-semibold text-slate-900 text-sm">#{{ o.orderNumber }}</span>
+                <span class="text-slate-500 text-xs">
+                  {{ o.orderType === 'DineIn' ? 'Table ' + o.tableNumber : o.customerName }}
+                </span>
+                <span class="text-slate-400 text-xs">{{ o.createdAt | date: 'short' }}</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-xs font-medium px-2 py-0.5 rounded-md" [class]="statusClass(o.status)">
+                  {{ o.status }}
+                </span>
+                <span class="text-slate-700 text-sm font-medium">{{ o.totalAmount | number: '1.2-2' }}</span>
+              </div>
+            </div>
+
+            @if (expandedId() === o.id) {
+              <div class="mt-3 pt-3 border-t border-slate-100 space-y-1.5">
+                @for (item of o.items; track item.id) {
+                  <div class="text-sm text-slate-600">
+                    {{ item.quantity }}× {{ item.menuItemName }} — {{ item.lineTotal | number: '1.2-2' }}
+                  </div>
+                }
+                <div class="text-xs text-slate-400 pt-1">Cashier: {{ o.cashierName }}</div>
+              </div>
+            }
+          </button>
+        }
+      </div>
+    }
+  </div>
+</div>
