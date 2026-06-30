@@ -1,0 +1,330 @@
+<div class="min-h-screen bg-slate-50 flex flex-col">
+  <app-top-bar title="Admin" />
+
+  <div class="max-w-5xl mx-auto w-full p-4">
+    <div class="flex gap-1 mb-4 border-b border-slate-200">
+      @for (t of tabs; track t.id) {
+      <button (click)="setActiveTab(t.id)"
+              class="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
+              [class]="activeTab() === t.id ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'">
+        {{ t.label }}
+      </button>
+      }
+    </div>
+
+    @if (activeTab() === 'stations') {
+    <div class="bg-white border border-slate-200 rounded-xl p-4">
+      <div class="flex gap-2 mb-4">
+        <input [(ngModel)]="newStationName" placeholder="Station name (e.g. Grill)" class="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+        <input [(ngModel)]="newStationColor" type="color" class="w-12 border border-slate-200 rounded-lg" />
+        <button (click)="createStation()" class="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium">Add</button>
+      </div>
+      <div class="space-y-1.5">
+        @for (s of stations(); track s.id) {
+        <div class="flex items-center justify-between px-3 py-2 rounded-lg" [class.bg-slate-50]="!s.isActive">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full" [style.background]="s.color || '#94a3b8'"></span>
+            <span class="font-medium text-slate-800 text-sm" [class.line-through]="!s.isActive">{{ s.name }}</span>
+          </div>
+          <button (click)="toggleStation(s)" class="text-xs font-medium text-slate-500 hover:text-slate-800">
+            {{ s.isActive ? 'Deactivate' : 'Activate' }}
+          </button>
+        </div>
+        }
+      </div>
+    </div>
+    }
+
+    @if (activeTab() === 'addons') {
+    <div class="bg-white border border-slate-200 rounded-xl p-4">
+      <div class="flex gap-2 mb-4 flex-wrap">
+        <input [(ngModel)]="newAddOnName" placeholder="Add-on name (e.g. Extra cheese)" class="flex-1 min-w-[180px] border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+        <input [(ngModel)]="newAddOnPrice" type="number" step="0.01" placeholder="Price" class="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+        <label class="flex items-center gap-1.5 text-sm text-slate-600">
+          <input type="checkbox" [(ngModel)]="newAddOnIsRemoval" /> Removal
+        </label>
+        <button (click)="createAddOn()" class="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium">Add</button>
+      </div>
+      <div class="space-y-1.5">
+        @for (a of addOns(); track a.id) {
+        <div class="flex items-center justify-between px-3 py-2 rounded-lg" [class.bg-slate-50]="!a.isActive">
+          <span class="text-sm" [class.line-through]="!a.isActive">
+            {{ a.name }} <span class="text-slate-400">— {{ a.isRemoval ? 'removal' : (a.price | number: '1.2-2') }}</span>
+          </span>
+          <button (click)="toggleAddOn(a)" class="text-xs font-medium text-slate-500 hover:text-slate-800">
+            {{ a.isActive ? 'Deactivate' : 'Activate' }}
+          </button>
+        </div>
+        }
+      </div>
+    </div>
+    }
+
+    @if (activeTab() === 'components') {
+    <div class="bg-white border border-slate-200 rounded-xl p-4">
+      <div class="grid sm:grid-cols-2 gap-2 mb-4">
+        <input [(ngModel)]="newComponentName" placeholder="Component name (e.g. Patty)" class="border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+        <input [(ngModel)]="newComponentDescription" placeholder="Description (optional)" class="border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+        <select [(ngModel)]="newComponentStation" class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+          <option [ngValue]="null" disabled>Default station…</option>
+          @for (s of stations(); track s.id) {
+          <option [ngValue]="s">{{ s.name }}</option>
+          }
+        </select>
+        <label class="flex items-center gap-1.5 text-sm text-slate-600">
+          <input type="checkbox" [(ngModel)]="newComponentIsActive" /> Active
+        </label>
+      </div>
+
+      <!-- Allowed add-ons: chip-select + per-add-on max quantity -->
+      <div class="mb-4">
+        <p class="text-xs font-medium text-slate-600 mb-1.5">Allowed add-ons</p>
+        <div class="flex flex-wrap gap-2">
+          @for (a of addOns(); track a.id) {
+          <div class="flex items-center gap-2 px-2.5 py-1 rounded-full border text-xs font-medium transition-colors"
+               [class]="isAddOnSelected(a.id) ? 'bg-amber-100 border-amber-300 text-amber-800' : 'border-slate-200 text-slate-500'">
+            <button (click)="toggleNewComponentAddOn(a.id)" class="font-medium">
+              {{ a.name }}
+            </button>
+            @if (isAddOnSelected(a.id)) {
+            <span class="flex items-center gap-1 border-l border-amber-300 pl-2">
+              <button (click)="decrementAddOnMax(a.id)" class="w-4 h-4 flex items-center justify-center text-amber-700">−</button>
+              <span class="w-4 text-center">{{ addOnMaxQuantity(a.id) }}</span>
+              <button (click)="incrementAddOnMax(a.id)" class="w-4 h-4 flex items-center justify-center text-amber-700">+</button>
+            </span>
+            }
+          </div>
+          }
+          @if (addOns().length === 0) {
+          <p class="text-xs text-slate-400">No add-ons yet — create some in the Add-ons tab first.</p>
+          }
+        </div>
+      </div>
+
+      <!-- Swappable with: chip-select against other existing components -->
+      <div class="mb-4">
+        <p class="text-xs font-medium text-slate-600 mb-1.5">Swappable with</p>
+        <div class="flex flex-wrap gap-1.5">
+          @for (c of components(); track c.id) {
+          <button (click)="toggleNewComponentSwap(c.id)"
+                  class="px-3 py-1 rounded-full text-xs font-medium border transition-colors"
+                  [class]="newComponentSwapIds.has(c.id) ? 'bg-slate-900 text-white border-slate-900' : 'border-slate-200 text-slate-600'">
+            {{ c.name }}
+          </button>
+          }
+          @if (components().length === 0) {
+          <p class="text-xs text-slate-400">No other components yet.</p>
+          }
+        </div>
+      </div>
+
+      <!-- Variants: repeatable row editor (name + price delta + default flag) -->
+      <div class="mb-4">
+        <p class="text-xs font-medium text-slate-600 mb-1.5">Variants</p>
+        <div class="space-y-2 mb-2">
+          @for (v of newComponentVariants; track $index) {
+          <div class="flex items-center gap-2">
+            <input [(ngModel)]="v.name" placeholder="Variant name (e.g. Large)" class="flex-1 border border-slate-200 rounded-lg px-3 py-1.5 text-sm" />
+            <input [(ngModel)]="v.priceDelta" type="number" step="0.01" placeholder="± Price" class="w-24 border border-slate-200 rounded-lg px-3 py-1.5 text-sm" />
+            <label class="flex items-center gap-1 text-xs text-slate-600 whitespace-nowrap">
+              <input type="radio" name="defaultVariant" [checked]="v.isDefault" (change)="setDefaultVariant($index)" /> Default
+            </label>
+            <button (click)="removeVariantRow($index)" class="text-slate-400 hover:text-red-500 text-xs font-medium px-1">✕</button>
+          </div>
+          }
+        </div>
+        <button (click)="addVariantRow()" class="text-xs font-medium text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg px-3 py-1.5">
+          + Add variant
+        </button>
+      </div>
+
+      <div class="flex gap-2 mb-4">
+        <button (click)="saveComponent()" class="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium">
+          {{ editingComponentId() !== null ? 'Save changes' : 'Add component' }}
+        </button>
+        @if (editingComponentId() !== null) {
+        <button (click)="cancelEditComponent()" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-lg text-sm font-medium">
+          Cancel
+        </button>
+        }
+      </div>
+
+      <div class="space-y-2">
+        @for (c of components(); track c.id) {
+        <div class="border border-slate-100 rounded-lg p-3" [class.bg-amber-50]="editingComponentId() === c.id">
+          <div class="flex items-center justify-between">
+            <span class="font-medium text-slate-800 text-sm">{{ c.name }}</span>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-400">{{ c.defaultStationName }}</span>
+              <button (click)="startEditComponent(c)" class="text-xs font-medium text-slate-500 hover:text-slate-900">
+                Edit
+              </button>
+            </div>
+          </div>
+          @if (c.variants.length) {
+          <div class="text-xs text-slate-500 mt-1">
+            Variants: {{ variantNames(c) }}
+          </div>
+          }
+        </div>
+        }
+      </div>
+    </div>
+    }
+
+    @if (activeTab() === 'menu-items') {
+    <div class="bg-white border border-slate-200 rounded-xl p-4">
+      <div class="grid sm:grid-cols-2 gap-2 mb-2">
+        <input [(ngModel)]="newMenuItemName" placeholder="Menu item name (e.g. Classic Burger)" class="border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+        <input [(ngModel)]="newMenuItemCategory" placeholder="Category (e.g. Burgers)" class="border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+        <input [(ngModel)]="newMenuItemPrice" type="number" step="0.01" placeholder="Base price" class="border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+        <input [(ngModel)]="newMenuItemPrepTime" type="number" placeholder="Prep time (min)" class="border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+      </div>
+
+      <div class="grid sm:grid-cols-2 gap-2 mb-3">
+        <input [(ngModel)]="newMenuItemDescription" placeholder="Description (optional)" class="border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+        <label class="flex items-center gap-1.5 text-sm text-slate-600">
+          <input type="checkbox" [(ngModel)]="newMenuItemIsActive" /> Active
+        </label>
+      </div>
+
+      <div class="mb-3">
+        <p class="text-xs font-medium text-slate-600 mb-1.5">Components included</p>
+        <div class="flex flex-wrap gap-2">
+          @for (c of components(); track c.id) {
+          <div class="flex items-center gap-2 px-2.5 py-1 rounded-full border text-xs font-medium transition-colors"
+               [class]="isMenuItemComponentSelected(c.id) ? 'bg-slate-900 border-slate-900 text-white' : 'border-slate-200 text-slate-600'">
+            <button (click)="toggleMenuItemComponent(c.id)" class="font-medium">
+              {{ c.name }}
+            </button>
+            @if (isMenuItemComponentSelected(c.id)) {
+            <span class="flex items-center gap-1 border-l pl-2" [class]="isMenuItemComponentSelected(c.id) ? 'border-slate-600' : 'border-slate-200'">
+              <button (click)="decrementMenuItemComponentQty(c.id)" class="w-4 h-4 flex items-center justify-center">−</button>
+              <span class="w-4 text-center">{{ menuItemComponentQty(c.id) }}</span>
+              <button (click)="incrementMenuItemComponentQty(c.id)" class="w-4 h-4 flex items-center justify-center">+</button>
+            </span>
+            }
+          </div>
+          }
+          @if (components().length === 0) {
+          <p class="text-xs text-slate-400">No components yet — create some in the Components tab first.</p>
+          }
+        </div>
+      </div>
+
+      <div class="flex gap-2 mb-4">
+        <button (click)="saveMenuItem()" class="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium">
+          {{ editingMenuItemId() !== null ? 'Save changes' : 'Add menu item' }}
+        </button>
+        @if (editingMenuItemId() !== null) {
+        <button (click)="cancelEditMenuItem()" class="bg-slate-100 text-slate-600 px-4 py-2 rounded-lg text-sm font-medium">
+          Cancel
+        </button>
+        }
+        @if (MenuItemMessage()) {
+        <p class="text-sm mt-2" [class.text-emerald-600]="!MenuItemError()" [class.text-red-600]="MenuItemError()">
+          {{ MenuItemMessage() }}
+        </p>
+        }
+      </div>
+
+      <div class="space-y-1.5">
+        @for (m of menuItems(); track m.id) {
+        <div class="flex items-center justify-between px-3 py-2 rounded-lg" [class.bg-slate-50]="!m.isActive" [class.bg-amber-50]="editingMenuItemId() === m.id">
+          <div>
+            <span class="font-medium text-slate-800 text-sm" [class.line-through]="!m.isActive">{{ m.name }}</span>
+            <span class="text-slate-400 text-xs ml-2">{{ m.category }} · {{ m.basePrice | number: '1.2-2' }}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button (click)="startEditMenuItem(m)" class="text-xs font-medium text-slate-500 hover:text-slate-900">
+              Edit
+            </button>
+            <button (click)="toggleMenuItem(m)" class="text-xs font-medium text-slate-500 hover:text-slate-800">
+              {{ m.isActive ? 'Deactivate' : 'Activate' }}
+            </button>
+          </div>
+        </div>
+        }
+      </div>
+    </div>
+    }
+
+    @if (activeTab() === 'users') {
+    <div class="bg-white border border-slate-200 rounded-xl p-4">
+      <div class="grid sm:grid-cols-2 gap-2 mb-2">
+        <input [(ngModel)]="newUserFullName" placeholder="Full name" class="border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+        <input [(ngModel)]="newUserEmail" type="email" placeholder="Email" class="border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+        <input [(ngModel)]="newUserPassword" type="password" placeholder="Temporary password" class="border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+        <select [(ngModel)]="newUserRole" class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+          <option value="Cashier">Cashier</option>
+          <option value="Cook">Cook</option>
+          <option value="Expediter">Expediter</option>
+          <option value="Admin">Admin</option>
+        </select>
+      </div>
+      @if (newUserRole === 'Cook') {
+      <select [(ngModel)]="newUserStationId" class="border border-slate-200 rounded-lg px-3 py-2 text-sm mb-2 w-full sm:w-auto">
+        <option [ngValue]="null" disabled>Assign station…</option>
+        @for (s of stations(); track s.id) {
+        <option [ngValue]="s.id">{{ s.name }}</option>
+        }
+      </select>
+      }
+      <button (click)="registerUser()" class="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium">Create user</button>
+      @if (registerMessage()) {
+      <p class="text-sm mt-2" [class.text-emerald-600]="!registerError()" [class.text-red-600]="registerError()">
+        {{ registerMessage() }}
+      </p>
+      }
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-xl p-4 mt-4">
+      <h3 class="font-medium text-slate-800 text-sm mb-3">Existing users</h3>
+      <div class="space-y-3">
+        @for (u of users(); track u.id) {
+        <div class="border border-slate-100 rounded-lg p-3" [class.bg-slate-50]="!u.isActive">
+          <div class="flex items-start justify-between mb-2">
+            <div>
+              <span class="font-medium text-slate-800 text-sm" [class.line-through]="!u.isActive">{{ u.fullName }}</span>
+              <span class="text-slate-400 text-xs ml-2">{{ u.email }}</span>
+            </div>
+            <button (click)="toggleUserActive(u)"
+                    class="text-xs font-medium px-2.5 py-1 rounded-lg"
+                    [class]="u.isActive ? 'text-emerald-600 hover:bg-emerald-50' : 'text-red-600 hover:bg-red-50'">
+              {{ u.isActive ? 'Active' : 'Unactive' }}
+            </button>
+          </div>
+
+          <div class="flex flex-wrap gap-1.5 mb-2">
+            @for (r of allRoles; track r) {
+            <button (click)="toggleUserRole(u, r)"
+                    class="px-2.5 py-0.5 rounded-full text-xs font-medium border transition-colors"
+                    [class]="userHasRole(u, r) ? 'bg-slate-900 text-white border-slate-900' : 'border-slate-200 text-slate-500'">
+              {{ r }}
+            </button>
+            }
+          </div>
+
+          @if (userHasRole(u, 'Cook')) {
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-500">Station:</span>
+            <select [ngModel]="u.stationId"
+                    (ngModelChange)="assignUserStation(u, $event)"
+                    class="border border-slate-200 rounded-lg px-2 py-1 text-xs">
+              <option [ngValue]="null">Unassigned</option>
+              @for (s of stations(); track s.id) {
+              <option [ngValue]="s.id">{{ s.name }}</option>
+              }
+            </select>
+          </div>
+          }
+        </div>
+        }
+        @if (users().length === 0) {
+        <p class="text-slate-400 text-sm">No users yet.</p>
+        }
+      </div>
+    </div>
+    }
+  </div>
+</div>
