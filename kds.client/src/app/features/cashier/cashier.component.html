@@ -1,0 +1,280 @@
+<div class="min-h-screen bg-slate-50 flex flex-col">
+  <app-top-bar title="Cashier" />
+
+  <div class="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-4 p-4 max-w-7xl mx-auto w-full">
+    <!-- Menu picker -->
+    <div class="lg:col-span-2 space-y-3">
+      <div class="flex gap-2 overflow-x-auto pb-1">
+        @for (cat of categories(); track cat) {
+          <button
+            (click)="activeCategory.set(cat)"
+            class="px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors"
+            [class]="activeCategory() === cat ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'"
+          >
+            {{ cat }}
+          </button>
+        }
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        @for (mi of filteredMenuItems(); track mi.id) {
+          <button
+            (click)="startConfiguring(mi)"
+            class="bg-white border border-slate-200 rounded-xl p-3 text-left hover:border-slate-400 hover:shadow-sm transition-all"
+          >
+            <div class="font-semibold text-slate-900 text-sm">{{ mi.name }}</div>
+            <div class="text-slate-500 text-xs mt-1">{{ mi.basePrice | number: '1.2-2' }}</div>
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Cart -->
+    <div class="bg-white border border-slate-200 rounded-xl p-4 flex flex-col h-fit lg:sticky lg:top-4">
+      <h2 class="font-semibold text-slate-900 mb-3">Current order</h2>
+
+      <div class="flex gap-2 mb-3">
+        <button
+          (click)="orderType.set('DineIn')"
+          class="flex-1 text-sm font-medium py-1.5 rounded-lg transition-colors"
+          [class]="orderType() === 'DineIn' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'"
+        >
+          Dine-in
+        </button>
+        <button
+          (click)="orderType.set('Pickup')"
+          class="flex-1 text-sm font-medium py-1.5 rounded-lg transition-colors"
+          [class]="orderType() === 'Pickup' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'"
+        >
+          Pickup
+        </button>
+      </div>
+
+      @if (orderType() === 'DineIn') {
+        <input
+          [(ngModel)]="tableNumber"
+          placeholder="Table number"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-slate-400"
+        />
+      } @else {
+        <input
+          [(ngModel)]="customerName"
+          placeholder="Customer name"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-slate-400"
+        />
+      }
+
+      @if (cart().length === 0) {
+        <p class="text-slate-400 text-sm text-center py-6">No items yet</p>
+      } @else {
+        <p class="text-slate-400 text-[11px] mb-2">Tap an item to edit it</p>
+        <div class="space-y-2 mb-3 max-h-80 overflow-y-auto">
+          @for (line of cart(); track $index) {
+            <button
+              (click)="startEditingCartLine($index)"
+              class="w-full border border-slate-100 rounded-lg p-2 text-left text-sm hover:border-slate-300 hover:bg-slate-50 transition-colors"
+            >
+              <div class="flex justify-between items-start">
+                <div class="font-medium text-slate-800">
+                  {{ line.quantity }}× {{ line.menuItem.name }}
+                  <span class="text-slate-400 font-normal">
+                    | ×{{ line.menuItem.basePrice | number: '1.2-2' }} = {{ (line.menuItem.basePrice * line.quantity) | number: '1.2-2' }}
+                  </span>
+                </div>
+                <button (click)="removeFromCart($index, $event)" class="text-slate-400 hover:text-red-500 text-xs font-medium shrink-0 ml-2">
+                  Remove
+                </button>
+              </div>
+
+              @for (entry of lineComponentsSummary(line); track entry.row.rowId) {
+                <div class="text-slate-500 text-xs mt-0.5">
+                  {{ entry.row.quantity }}× {{ entry.row.componentName }}
+                  @if (entry.row.variantId) {
+                  <span>
+                    ({{ variantName(entry.row) }})
+                    @if (variantPriceDelta(entry.row) != 0){<span> | ×{{ variantPriceDelta(entry.row) | number: '1.2-2' }} = {{ (variantPriceDelta(entry.row) * entry.row.quantity) | number: '1.2-2' }}</span>}
+                  </span>
+                  }
+                  @for (a of rowAddOnEntries(entry.row); track a.addOnId) {
+                    <div class="pl-3 text-[11px]" [class.text-red-400]="addOnIsRemoval(a.addOnId)" [class.text-slate-400]="!addOnIsRemoval(a.addOnId)">
+                      {{ addOnIsRemoval(a.addOnId) ? ' ' : '+ ' }}@if (a.quantity > 1){{{a.quantity}}} {{ addOnName(a.addOnId) }}
+                      @if (!addOnIsRemoval(a.addOnId)) {
+                      <span>
+                        | ×{{ addOnUnitPrice(a.addOnId) | number: '1.2-2' }} = {{ (addOnUnitPrice(a.addOnId) * a.quantity * entry.row.quantity) | number: '1.2-2' }}$
+                      </span>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </button>
+          }
+        </div>
+      }
+
+      <div class="border-t border-slate-100 pt-3 mt-auto">
+        <div class="flex justify-between text-sm font-semibold text-slate-900 mb-3">
+          <span>Total</span>
+          <span>{{ cartTotal() | number: '1.2-2' }}</span>
+        </div>
+        <button
+          (click)="submitOrder()"
+          [disabled]="cart().length === 0 || submitting()"
+          class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-lg py-2.5 transition-colors"
+        >
+          {{ submitting() ? 'Sending…' : 'Send to kitchen' }}
+        </button>
+        @if (lastOrderNumber()) {
+          <p class="text-emerald-600 text-xs text-center mt-2">Order #{{ lastOrderNumber() }} sent.</p>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Configuration modal (also used for editing an existing cart line) -->
+  @if (configuring(); as line) {
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+      <div class="bg-white rounded-2xl p-5 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <h3 class="font-bold text-slate-900 text-lg mb-1">
+          {{ line.menuItem.name }}
+          @if (editingCartIndex() !== null) {
+            <span class="text-amber-600 text-xs font-medium align-middle ml-2">Editing</span>
+          }
+        </h3>
+        <p class="text-slate-500 text-sm mb-4">{{ line.menuItem.description }}</p>
+
+        @for (group of line.groups; track group.groupComponentId) {
+          <div class="mb-5 border border-slate-100 rounded-xl p-3">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-medium text-slate-800 text-sm">
+                {{ group.groupComponentName }} · {{ group.totalQuantity }}x total
+              </span>
+              @if (canSplitGroup(group)) {
+                <button
+                  (click)="splitGroup(group)"
+                  class="text-xs font-medium text-slate-600 hover:text-slate-900 border border-slate-200 rounded-lg px-2.5 py-1"
+                >
+                  + Split
+                </button>
+              }
+            </div>
+
+            <div class="space-y-3">
+              @for (row of group.rows; track row.rowId) {
+                <div class="bg-slate-50 rounded-lg p-2.5">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                      @if (group.rows.length > 1) {
+                        <button (click)="adjustRowQuantity(group, row, -1)"
+                          [disabled]="row.quantity <= 1"
+                          class="w-6 h-6 rounded-full bg-white border border-slate-200 text-slate-700 disabled:opacity-30 text-xs">−</button>
+                      }
+                      <span class="font-semibold text-slate-900 text-sm w-6 text-center">{{ row.quantity }}×</span>
+                      @if (group.rows.length > 1) {
+                        <button (click)="adjustRowQuantity(group, row, 1)"
+                          class="w-6 h-6 rounded-full bg-white border border-slate-200 text-slate-700 text-xs">+</button>
+                      }
+                      <span class="text-slate-700 text-sm">{{ row.componentName }}</span>
+                    </div>
+                    @if (group.rows.length > 1) {
+                      <button (click)="removeRow(group, row)" class="text-slate-400 hover:text-red-500 text-xs font-medium">
+                        Merge back
+                      </button>
+                    }
+                  </div>
+
+                  @if (group.swapOptions.length > 0) {
+                    <div class="mb-2">
+                      <p class="text-[11px] text-slate-500 mb-1">Swap for</p>
+                      <div class="flex flex-wrap gap-1.5">
+                        <button
+                          (click)="swapRowComponent(group, row, group.groupComponentId)"
+                          class="px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-colors"
+                          [class]="row.componentId === group.groupComponentId ? 'bg-slate-900 text-white border-slate-900' : 'border-slate-200 text-slate-600'"
+                        >
+                          {{ group.groupComponentName }}
+                        </button>
+                        @for (opt of group.swapOptions; track opt.componentId) {
+                          <button
+                            (click)="swapRowComponent(group, row, opt.componentId)"
+                            class="px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-colors"
+                            [class]="row.componentId === opt.componentId ? 'bg-slate-900 text-white border-slate-900' : 'border-slate-200 text-slate-600'"
+                          >
+                            {{ opt.componentName }}
+                          </button>
+                        }
+                      </div>
+                    </div>
+                  }
+
+                  @if (row.availableVariants.length > 0) {
+                    <div class="flex flex-wrap gap-1.5 mb-2">
+                      @for (v of row.availableVariants; track v.id) {
+                        <button
+                          (click)="setRowVariant(row, v.id)"
+                          class="px-2.5 py-0.5 rounded-full text-[11px] font-medium border transition-colors"
+                          [class]="row.variantId === v.id ? 'bg-blue-600 text-white border-blue-600' : 'border-slate-200 text-slate-600'"
+                        >
+                          {{ v.name }}
+                          @if (v.priceDelta !== 0) { <span> ({{ v.priceDelta | number: '1.2-2' }})</span> }
+                        </button>
+                      }
+                    </div>
+                  }
+
+                  @if (row.availableAddOns.length > 0) {
+                    <div class="flex flex-wrap gap-1.5">
+                      @for (a of row.availableAddOns; track a.addOnId) {
+                        <div
+                          class="flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[11px] font-medium transition-colors"
+                          [class]="isAddOnSelected(row, a.addOnId) ? 'bg-amber-100 border-amber-300 text-amber-800' : 'border-slate-200 text-slate-500'"
+                        >
+                          <button (click)="toggleRowAddOn(row, a.addOnId)">
+                            {{ a.addOnName }}
+                            @if (!addOnIsRemoval(a.addOnId) && addOnUnitPrice(a.addOnId) !== 0) {
+                              <span> (+{{ addOnUnitPrice(a.addOnId) | number: '1.2-2' }})</span>
+                            }
+                          </button>
+                          @if (isAddOnSelected(row, a.addOnId) && a.maxQuantity > 1) {
+                            <span class="flex items-center gap-1 border-l border-amber-300 pl-1.5">
+                              <button (click)="decrementRowAddOnQty(row, a.addOnId)" class="w-3 text-amber-700">−</button>
+                              <span class="w-3 text-center">{{ addOnQty(row, a.addOnId) }}</span>
+                              <button (click)="incrementRowAddOnQty(row, a.addOnId, a.maxQuantity)" class="w-3 text-amber-700">+</button>
+                            </span>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="flex items-center gap-3 mb-4">
+          <span class="text-sm font-medium text-slate-700">Quantity of this item</span>
+          <button (click)="line.quantity = Math.max(1, line.quantity - 1)" class="w-7 h-7 rounded-full bg-slate-100 text-slate-700">−</button>
+          <span class="font-semibold text-slate-900 w-6 text-center">{{ line.quantity }}</span>
+          <button (click)="line.quantity = line.quantity + 1" class="w-7 h-7 rounded-full bg-slate-100 text-slate-700">+</button>
+        </div>
+
+        <textarea
+          [(ngModel)]="line.notes"
+          placeholder="Special instructions…"
+          rows="2"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-slate-400"
+        ></textarea>
+
+        <div class="flex gap-2">
+          <button (click)="cancelConfiguring()" class="flex-1 bg-slate-100 text-slate-700 font-medium rounded-lg py-2.5">
+            Cancel
+          </button>
+          <button (click)="confirmAddToCart(line)" class="flex-1 bg-slate-900 text-white font-medium rounded-lg py-2.5">
+            {{ editingCartIndex() !== null ? 'Save changes' : 'Add to order' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>
