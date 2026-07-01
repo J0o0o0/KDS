@@ -1,0 +1,55 @@
+<div class="login-page">
+  <div class="login-card">
+    <div class="brand">
+      <div class="brand-icon">K</div>
+      <h1>KDS</h1>
+      <p>Kitchen Display System</p>
+    </div>
+
+    @if (errorMessage(); as msg) {
+      <div class="alert" role="alert">{{ msg }}</div>
+    }
+
+    <form (ngSubmit)="submit()" class="form" novalidate>
+      <label class="field">
+        <span class="label">Email</span>
+        <input
+          type="email"
+          autocomplete="username"
+          [value]="email()"
+          (input)="onEmail($any($event.target).value)"
+          [disabled]="submitting()"
+          placeholder="you@company.com"
+          required
+        />
+      </label>
+
+      <label class="field">
+        <span class="label">Password</span>
+        <div class="password-wrap">
+          <input
+            [type]="showPassword() ? 'text' : 'password'"
+            autocomplete="current-password"
+            [value]="password()"
+            (input)="onPassword($any($event.target).value)"
+            [disabled]="submitting()"
+            placeholder="••••••••"
+            required
+          />
+          <button
+            type="button"
+            class="toggle"
+            (click)="toggleShowPassword()"
+            tabindex="-1"
+          >
+            {{ showPassword() ? 'Hide' : 'Show' }}
+          </button>
+        </div>
+      </label>
+
+      <button type="submit" class="submit" [disabled]="submitting()">
+        {{ submitting() ? 'Signing in...' : 'Sign In' }}
+      </button>
+    </form>
+  </div>
+</div>

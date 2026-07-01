@@ -1,0 +1,50 @@
+<div class="home">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">K</div>
+      <span class="brand-name">KDS</span>
+    </div>
+
+    <div class="user">
+      <div class="user-info">
+        <span class="user-name">{{ fullName() }}</span>
+        <span class="user-email">{{ email() }}</span>
+      </div>
+      <span class="badge">{{ roleLabel() }}</span>
+      <button type="button" class="logout" (click)="logout()">Sign out</button>
+    </div>
+  </header>
+
+  <main class="body">
+    @if (isAdmin()) {
+      <section class="role-section">
+        <h1>Admin Console</h1>
+        <p>Manage your kitchen, team, and menu.</p>
+        <div class="placeholder">
+          Admin dashboard, users, stations, menu — coming next.
+        </div>
+      </section>
+    } @else if (isCashier()) {
+      <section class="role-section">
+        <h1>Cashier</h1>
+        <p>Take new orders and track them through the kitchen.</p>
+        <div class="placeholder">
+          Point of sale — coming next.
+        </div>
+      </section>
+    } @else if (isCook()) {
+      <section class="role-section">
+        <h1>Kitchen</h1>
+        <p>See active tickets and update component status.</p>
+        <div class="placeholder">
+          Kitchen display — coming next.
+        </div>
+      </section>
+    } @else {
+      <section class="role-section">
+        <h1>No role assigned</h1>
+        <p>Contact an administrator to be assigned a role.</p>
+      </section>
+    }
+  </main>
+</div>
